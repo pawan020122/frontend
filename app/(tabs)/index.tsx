@@ -1,98 +1,268 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import {StyleSheet,Text,TouchableOpacity,View,TextInput,ActivityIndicator,Image,ScrollView,} from "react-native";
+import { useEffect, useState, useContext } from "react";
+import { SafeAreaView } from "react-native-safe-area-context";
+import axios from "axios";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Ionicons } from "@expo/vector-icons";
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import ElectronicsSection from "../../components/ElectronicsSection";
+import { CategoryContext } from "../context/Category";
 
-export default function HomeScreen() {
+const API = "http://localhost:5000/api";
+
+const Index = () => {
+  const categoryContext = useContext(CategoryContext);
+
+  const categories = categoryContext?.categories || [];
+  const categoryLoading = categoryContext?.loading || false;
+
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  useEffect(() => {
+    AsyncStorage.getItem("user").then((u) => {
+      if (u) setUser(JSON.parse(u));
+    });
+  }, []);
+
+  const login = async () => {
+    try {
+      setLoading(true);
+      const res = await axios.post(`${API}/auth/login`, {
+        email,
+        password,
+      });
+      await AsyncStorage.setItem(
+        "user",
+        JSON.stringify(res.data.data)
+      );
+      setUser(res.data.data);
+    } catch (err) {
+      console.log("Login failed", err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const logout = async () => {
+    await AsyncStorage.removeItem("user");
+    setUser(null);
+  };
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <SafeAreaView style={styles.container}>
+      {user ? (
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {/* HEADER */}
+          <View style={styles.topHeader}>
+            <Text style={styles.headerTitle}>E-commerce</Text>
+      <View style={styles.headerIcons}>
+              <Ionicons name="search-outline" size={22} />
+              <Ionicons name="cart-outline" size={22} />
+            </View>
+          </View>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+          <Image
+            source={{
+              uri: "https://i.pinimg.com/1200x/16/95/6e/16956eb9de3e27707651aff3e055c168.jpg",
+            }}
+            style={styles.banner}
+          />
+
+          <Text style={styles.sectionTitle}>Categories</Text>
+
+          {categoryLoading ? (
+            <ActivityIndicator />
+          ) : (
+            <View style={styles.categoryGrid}>
+              {categories.map((c) => (
+                <View key={c._id || c.id} style={styles.categoryCard}>
+                  <Image
+                    source={{
+                      uri:
+                        c.image && c.image.length > 0
+                          ? c.image
+                          : "https://cdn-icons-png.flaticon.com/512/1828/1828817.png",
+                    }}
+                    style={styles.categoryIcon}
+                  />
+                  <Text style={styles.categoryText}>
+                    {c.name}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* PRODUCTS */}
+          <ElectronicsSection />
+
+          {/* LOGOUT */}
+          <TouchableOpacity
+            style={styles.logoutBtn}
+            onPress={logout}
+          >
+            <Text style={styles.logoutText}>Logout</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      ) : (
+        /* LOGIN */
+        <View style={styles.card}>
+          <Text style={styles.heading}>Welcome Back</Text>
+
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            value={email}
+            onChangeText={setEmail}
+          />
+
+          <TextInput
+            style={styles.input}
+            placeholder="Password"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
+
+          <TouchableOpacity
+            style={styles.loginBtn}
+            onPress={login}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.loginText}>Login</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
+    </SafeAreaView>
   );
-}
+};
+
+export default Index;
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
+    backgroundColor: "#f5f6fa",
+    paddingHorizontal: 16,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+
+  topHeader: {
+    height: 58,
+    backgroundColor: "#b0ed08",
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+  },
+
+  headerIcons: {
+    flexDirection: "row",
+    gap: 16,
+  },
+
+  banner: {
+    width: "100%",
+    height: 170,
+    borderRadius: 18,
+    marginBottom: 22,
+    resizeMode: "cover",
+  },
+
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 14,
+  },
+
+  categoryGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+
+  categoryCard: {
+    width: "23%",
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    alignItems: "center",
+    paddingVertical: 14,
+    marginBottom: 18,
+    elevation: 3,
+  },
+
+  categoryIcon: {
+    width: 46,
+    height: 46,
+    marginBottom: 6,
+  },
+
+  categoryText: {
+    fontSize: 12,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 18,
+    padding: 26,
+    marginTop: 90,
+  },
+
+  heading: {
+    fontSize: 24,
+    fontWeight: "800",
+    marginBottom: 16,
+  },
+
+  input: {
+    height: 48,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    marginBottom: 16,
+  },
+
+  loginBtn: {
+    height: 50,
+    backgroundColor: "#ff4d67",
+    borderRadius: 14,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  loginText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+
+  logoutBtn: {
+    height: 48,
+    borderWidth: 1.5,
+    borderColor: "#ef4444",
+    borderRadius: 14,
+    justifyContent: "center",
+    alignItems: "center",
+    marginVertical: 28,
+  },
+
+  logoutText: {
+    color: "#ef4444",
+    fontWeight: "700",
   },
 });
